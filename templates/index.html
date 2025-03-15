@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detección de Puño</title>
+    <style>
+        body {
+            text-align: center;
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            overflow: hidden;
+        }
+        #video-container {
+            position: relative;
+            display: inline-block;
+        }
+        #video-feed {
+            width: 640px;
+            height: 480px;
+            border: 2px solid white;
+        }
+        #flash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #video-reproducir {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Cierra el puño para tomar una foto!</h1>
+
+    <div id="video-container">
+        <img id="video-feed" src="{{ url_for('video_feed') }}">
+    </div>
+
+    <div id="flash"></div>
+
+    <video id="video-reproducir" autoplay muted playsinline>
+        <source id="video-source" src="" type="video/mp4">
+        Tu navegador no soporta el elemento de video.
+    </video>
+
+    <script>
+        let videoEnReproduccion = false;
+        let primerDestello = true; // Bandera para el primer destello
+        
+        // 🔥 Lista de videos con pesos iniciales
+        const videos = [
+            { src: "static/Monkey.mp4", weight: 1 }, // Primer video
+            { src: "static/Rick.mp4", weight: 1 },
+            { src: "static/Gato.mp4", weight: 1 },
+            { src: "static/-doxeo meme-.mp4", weight: 1 }
+        ];
+
+        function checkFist() {
+            if (videoEnReproduccion) return; // No hacer nada si el video está reproduciéndose
+
+            fetch('/check_fist')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.puño) {
+                        activarFlashYVideo();
+                    }
+                })
+                .catch(error => console.error("Error al verificar el puño:", error));
+        }
+
+        function activarFlashYVideo() {
+            videoEnReproduccion = true; // Evita que el flash se repita mientras el video está activo
+            
+            let flash = document.getElementById('flash');
+            flash.style.opacity = '1';
+
+            setTimeout(() => {
+                flash.style.opacity = '0';
+                reproducirVideo();
+            }, 100);
+        }
+
+        function reproducirVideo() {
+            let video = document.getElementById('video-reproducir');
+            let videoFeed = document.getElementById('video-feed');
+            let videoSource = document.getElementById('video-source');
+
+            let selectedVideo;
+
+            if (primerDestello) {
+                // Reproducir Monkey.mp4 en el primer destello
+                selectedVideo = videos[0]; // Monkey.mp4 es el primer video en la lista
+                primerDestello = false; // Desactivar la bandera del primer destello
+            } else {
+                // Seleccionar un video basado en pesos para los destellos siguientes
+                selectedVideo = seleccionarVideoConPeso();
+            }
+
+            // Reducir el peso del video seleccionado (excepto en el primer destello)
+            if (!primerDestello) {
+                selectedVideo.weight /= 2;
+            }
+
+            videoSource.src = selectedVideo.src;
+
+            // 🔄 Recargar el video con el nuevo source
+            video.load();
+            
+            video.style.display = 'block';
+            videoFeed.style.display = 'none';  // Oculta el feed de la cámara
+
+            // Reproducir el video
+            video.play()
+                .then(() => {
+                    console.log("Video reproducido correctamente");
+                    // Habilitar el sonido después de la interacción del usuario
+                    document.addEventListener('click', () => {
+                        video.muted = false;
+                    }, { once: true }); // Solo se ejecuta una vez
+                })
+                .catch((error) => {
+                    console.error("Error al reproducir el video:", error);
+                    // Si hay un error, restablecer el estado
+                    video.style.display = 'none';
+                    videoFeed.style.display = 'block';
+                    videoEnReproduccion = false;
+                });
+
+            video.onended = function() {
+                video.style.display = 'none';
+                videoFeed.style.display = 'block';  // Muestra de nuevo el feed
+                videoEnReproduccion = false; // Permite que el flash y el video vuelvan a activarse
+            };
+        }
+
+        function seleccionarVideoConPeso() {
+            // Calcular la suma total de los pesos
+            let totalWeight = videos.reduce((sum, video) => sum + video.weight, 0);
+
+            // Verificar si todos los pesos son muy bajos (menores a 0.1)
+            if (totalWeight < 0.1) {
+                // Restablecer los pesos
+                videos.forEach(video => video.weight = 1);
+                totalWeight = videos.length; // Suma total de pesos restablecida
+            }
+
+            // Seleccionar un número aleatorio entre 0 y el total de pesos
+            let randomValue = Math.random() * totalWeight;
+
+            // Encontrar el video correspondiente al valor aleatorio
+            let cumulativeWeight = 0;
+            for (let video of videos) {
+                cumulativeWeight += video.weight;
+                if (randomValue <= cumulativeWeight) {
+                    return video;
+                }
+            }
+        }
+
+        setInterval(checkFist, 500);
+    </script>
+
+</body>
+</html>

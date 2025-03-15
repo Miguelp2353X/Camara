@@ -1,0 +1,27 @@
+body {
+    text-align: center;
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    padding-top: 50px;
+}
+h1 {
+    color: #007bff;
+}
+
+.Video{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+#video-reproducir {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30vw; /* Ajusta el tamaño a tu gusto */
+    height: auto;
+    z-index: 1000; /* Para que esté sobre todo */
+}
